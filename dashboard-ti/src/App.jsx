@@ -26,8 +26,8 @@ function App() {
 
   const fetchData = async () => {
     try {
-      // Ordenamos por 'sort_order' para asegurar la secuencia lógica
-      const scheduleData = await sql`SELECT * FROM schedule ORDER BY sort_order ASC`;
+      // Ordenamos por 'id' (funciona con cualquier versión de la DB)
+      const scheduleData = await sql`SELECT * FROM schedule ORDER BY id ASC`;
       const notesData = await sql`SELECT content FROM notes LIMIT 1`;
 
       setSchedule(scheduleData);
@@ -145,8 +145,8 @@ function App() {
               key={day}
               onClick={() => setActiveDay(day)}
               className={`px-6 py-2.5 rounded-2xl font-semibold text-sm transition-all whitespace-nowrap ${activeDay === day
-                  ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 transform -translate-y-1'
-                  : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'
+                ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 transform -translate-y-1'
+                : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'
                 }`}
             >
               {day}
@@ -169,8 +169,8 @@ function App() {
                 <div
                   key={task.id}
                   className={`relative z-10 flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 ${task.is_completed
-                      ? 'bg-slate-100 border-transparent opacity-60 grayscale'
-                      : `${getBgColor(task.type, active)} border-slate-100`
+                    ? 'bg-slate-100 border-transparent opacity-60 grayscale'
+                    : `${getBgColor(task.type, active)} border-slate-100`
                     }`}
                 >
                   {/* Badge de "AHORA" */}
