@@ -3,10 +3,9 @@ import react from '@vitejs/plugin-react';
 import { postgres } from 'vite-plugin-db';
 
 export default defineConfig({
-  base: './',
+  base: '/Horario/', // ✅ NOMBRE EXACTO DE TU REPOSITORIO
   plugins: [
     postgres({
-      // Esto inyectará VITE_DATABASE_URL en tu .env automáticamente
       envPrefix: 'VITE_',
       seed: {
         type: 'sql-script',
