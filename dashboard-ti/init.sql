@@ -1,4 +1,4 @@
--- 1. LIMPIEZA TOTAL
+-- 1. LIMPIEZA
 DROP TABLE IF EXISTS schedule;
 
 DROP TABLE IF EXISTS tasks;
@@ -7,12 +7,12 @@ DROP TABLE IF EXISTS finance;
 
 DROP TABLE IF EXISTS habits;
 
-DROP TABLE IF EXISTS notes;
+DROP TABLE IF EXISTS gym_logs;
 
--- 2. CREAR TABLAS (Soporte Multi-usuario + Orden)
+-- 2. CREAR TABLAS (Con la mejora en habits)
 CREATE TABLE schedule (
     id SERIAL PRIMARY KEY,
-    owner VARCHAR(20) NOT NULL, -- 'anthony' o 'sofia'
+    owner VARCHAR(20) NOT NULL,
     day VARCHAR(20),
     time_range VARCHAR(50),
     title VARCHAR(100),
@@ -35,20 +35,29 @@ CREATE TABLE finance (
     owner VARCHAR(20) NOT NULL,
     description VARCHAR(100),
     amount DECIMAL(10, 2),
-    type VARCHAR(10)
+    type VARCHAR(10),
+    date DATE DEFAULT CURRENT_DATE
 );
 
 CREATE TABLE habits (
     id SERIAL PRIMARY KEY,
     owner VARCHAR(20) NOT NULL,
     title VARCHAR(100),
+    frequency VARCHAR(20) DEFAULT 'Diario', -- 'Diario' o 'Semanal'
+    target_days TEXT DEFAULT '', -- NUEVO: Ej "Lunes,Miércoles"
     history TEXT DEFAULT ''
 );
 
--- ==========================================
--- 3. DATOS DE ANTHONY (TU RUTINA DETALLADA)
--- ==========================================
--- LUNES
+CREATE TABLE gym_logs (
+    id SERIAL PRIMARY KEY,
+    owner VARCHAR(20) NOT NULL,
+    exercise VARCHAR(100),
+    weight VARCHAR(20),
+    reps VARCHAR(20),
+    date DATE DEFAULT CURRENT_DATE
+);
+
+-- 3. RESTAURAR DATOS ANTHONY
 INSERT INTO
     schedule (
         owner,
@@ -177,7 +186,6 @@ VALUES (
         13
     );
 
--- MARTES
 INSERT INTO
     schedule (
         owner,
@@ -288,7 +296,6 @@ VALUES (
         11
     );
 
--- MIÉRCOLES
 INSERT INTO
     schedule (
         owner,
@@ -399,7 +406,6 @@ VALUES (
         11
     );
 
--- JUEVES
 INSERT INTO
     schedule (
         owner,
@@ -492,7 +498,6 @@ VALUES (
         9
     );
 
--- VIERNES
 INSERT INTO
     schedule (
         owner,
@@ -576,7 +581,6 @@ VALUES (
         8
     );
 
--- SÁBADO
 INSERT INTO
     schedule (
         owner,
@@ -624,10 +628,7 @@ VALUES (
         4
     );
 
--- ==========================================
--- 4. DATOS DE SOFIA (ENFERMERÍA) - ACTUALIZADO
--- ==========================================
--- Lunes
+-- 4. RESTAURAR DATOS SOFIA
 INSERT INTO
     schedule (
         owner,
@@ -683,7 +684,7 @@ VALUES (
         '🏥 Facultad',
         5
     );
--- Martes
+
 INSERT INTO
     schedule (
         owner,
@@ -721,7 +722,7 @@ VALUES (
         '🚑 Hospital',
         3
     );
--- Miércoles
+
 INSERT INTO
     schedule (
         owner,
@@ -750,7 +751,7 @@ VALUES (
         '🏫 Aula',
         2
     );
--- Jueves
+
 INSERT INTO
     schedule (
         owner,
@@ -779,7 +780,7 @@ VALUES (
         '🏥 Facultad',
         2
     );
--- Viernes
+
 INSERT INTO
     schedule (
         owner,
@@ -836,7 +837,6 @@ VALUES (
         5
     );
 
--- TAREAS INICIALES
 INSERT INTO
     tasks (
         owner,
@@ -846,13 +846,13 @@ INSERT INTO
     )
 VALUES (
         'anthony',
-        'Actualizar base de datos',
+        'Probar exportar CSV',
         'Alta',
-        'done'
+        'todo'
     ),
     (
         'sofia',
-        'Comprar guía de bioética',
+        'Organizar apuntes',
         'Media',
         'todo'
     );
