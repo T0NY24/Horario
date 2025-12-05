@@ -1,14 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { neon } from '@neondatabase/serverless';
 import {
   CheckCircle2, Circle, Clock, MapPin, Music, Monitor, Bus, Dumbbell,
   Calendar, CheckSquare, Wallet, Activity, ArrowRight, ArrowLeft, Plus, Trash2,
   Heart, Stethoscope, LogOut, Flame, Download, Edit3, X, Save, Infinity as InfinityIcon,
-  Sun, Moon, Sparkles, Utensils, BookOpen, Coffee
+  Sun, Moon, Sparkles, Utensils, BookOpen, Coffee, TrendingUp, PieChart as PieIcon
 } from 'lucide-react';
+// IMPORTAMOS LOS GRÁFICOS
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, BarChart, Bar, Legend
+} from 'recharts';
 
 const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const sql = neon(import.meta.env.VITE_DATABASE_URL);
+
+// Colores para gráficos
+const COLORS = ['#10B981', '#EF4444', '#F59E0B', '#6366F1'];
 
 function App() {
   // --- STATES ---
@@ -33,9 +41,7 @@ function App() {
   const [newHabit, setNewHabit] = useState({ title: '', freq: 'Siempre', selectedDays: [] });
   const [newGym, setNewGym] = useState({ exercise: '', weight: '', reps: '' });
 
-  // --- EFECTOS (HOOKS) ---
-  // IMPORTANTE: Todos los useEffect deben ir AQUÍ ARRIBA, antes de cualquier return
-
+  // --- HOOKS ---
   useEffect(() => {
     if (currentUser) {
       setLoading(true);
@@ -48,18 +54,14 @@ function App() {
     return () => clearInterval(timer);
   }, [currentUser]);
 
-  // Sistema de Notificaciones (Corregido para Android y Web)
+  // Notificaciones
   useEffect(() => {
-    // 1. Pedir permiso
-    if (Notification.permission !== 'granted') {
-      Notification.requestPermission();
-    }
+    if (Notification.permission !== 'granted') Notification.requestPermission();
   }, []);
 
   useEffect(() => {
     const checkNotifications = () => {
       if (Notification.permission !== 'granted' || !currentUser) return;
-
       const now = new Date();
       const currentDayName = days[now.getDay() - 1];
       const currentHour = now.getHours().toString().padStart(2, '0');
@@ -67,33 +69,57 @@ function App() {
       const currentTimeStr = `${currentHour}:${currentMinute}`;
 
       const userSchedule = schedule.filter(t => t.day === currentDayName);
-
       userSchedule.forEach(task => {
         const startTime = task.time_range.split(' - ')[0].trim();
-
-        // Comprobar si es la hora exacta (segundo 0)
         if (startTime === currentTimeStr && now.getSeconds() < 2) {
           try {
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-
             new Notification(`🔔 ${task.title}`, {
               body: `Es hora de ${task.title} en ${task.location}`,
               icon: '/pwa-192x192.png',
               vibrate: [200, 100, 200]
             });
-          } catch (e) {
-            console.error("Error notificando", e);
-          }
+          } catch (e) { console.error(e); }
         }
       });
     };
-
     const interval = setInterval(checkNotifications, 1000);
     return () => clearInterval(interval);
   }, [schedule, currentUser]);
 
+  // --- DATA PROCESSING FOR CHARTS ---
+  const financeChartData = useMemo(() => {
+    // Agrupar finanzas por fecha para el gráfico de área
+    const grouped = {};
+    finance.forEach(f => {
+      const date = f.date; // Asumimos formato YYYY-MM-DD
+      if (!grouped[date]) grouped[date] = { date, ingresos: 0, gastos: 0 };
+      if (f.type === 'ingreso') grouped[date].ingresos += parseFloat(f.amount);
+      else grouped[date].gastos += parseFloat(f.amount);
+    });
+    return Object.values(grouped).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-7); // Últimos 7 movimientos
+  }, [finance]);
 
-  // --- CARGA DE DATOS ---
+  const financePieData = useMemo(() => {
+    const totalIng = finance.filter(f => f.type === 'ingreso').reduce((a, b) => a + parseFloat(b.amount), 0);
+    const totalGas = finance.filter(f => f.type === 'gasto').reduce((a, b) => a + parseFloat(b.amount), 0);
+    return [
+      { name: 'Ingresos', value: totalIng },
+      { name: 'Gastos', value: totalGas }
+    ];
+  }, [finance]);
+
+  const habitChartData = useMemo(() => {
+    return habits.map(h => {
+      const historyArr = h.history ? h.history.split(',') : [];
+      return {
+        name: h.title.substring(0, 10) + '...', // Acortar nombre
+        dias: historyArr.length
+      };
+    });
+  }, [habits]);
+
+  // --- FETCH DATA ---
   const fetchData = async () => {
     try {
       const scheduleData = await sql`SELECT * FROM schedule WHERE owner = ${currentUser} ORDER BY day, time_range ASC`;
@@ -126,37 +152,18 @@ function App() {
     link.click();
   };
 
-  // --- ACTIONS ---
+  // --- ACTIONS (Igual que antes) ---
   const addScheduleItem = async (e) => {
-    e.preventDefault();
-    if (!newClass.title) return;
+    e.preventDefault(); if (!newClass.title) return;
     const timeRange = `${newClass.start} - ${newClass.end}`;
     const res = await sql`INSERT INTO schedule (owner, day, time_range, title, type, location) VALUES (${currentUser}, ${newClass.day}, ${timeRange}, ${newClass.title}, ${newClass.type}, ${newClass.location}) RETURNING *`;
     setSchedule([...schedule, res[0]].sort((a, b) => a.day.localeCompare(b.day) || a.time_range.localeCompare(b.time_range)));
     setNewClass({ ...newClass, title: '', location: '' });
   };
+  const deleteScheduleItem = async (id) => { if (!confirm("¿Borrar?")) return; setSchedule(prev => prev.filter(t => t.id !== id)); await sql`DELETE FROM schedule WHERE id = ${id}`; };
+  const toggleScheduleComplete = async (id, currentStatus) => { if (isEditingSchedule) return; const newStatus = !currentStatus; setSchedule(prev => prev.map(t => t.id === id ? { ...t, is_completed: newStatus } : t)); await sql`UPDATE schedule SET is_completed = ${newStatus} WHERE id = ${id}`; };
 
-  const deleteScheduleItem = async (id) => {
-    if (!confirm("¿Borrar?")) return;
-    setSchedule(prev => prev.filter(t => t.id !== id));
-    await sql`DELETE FROM schedule WHERE id = ${id}`;
-  };
-
-  const toggleScheduleComplete = async (id, currentStatus) => {
-    if (isEditingSchedule) return;
-    const newStatus = !currentStatus;
-    setSchedule(prev => prev.map(t => t.id === id ? { ...t, is_completed: newStatus } : t));
-    await sql`UPDATE schedule SET is_completed = ${newStatus} WHERE id = ${id}`;
-  };
-
-  const addTask = async (e) => {
-    e.preventDefault();
-    if (!newTask.trim()) return;
-    const res = await sql`INSERT INTO tasks (owner, title, status, priority) VALUES (${currentUser}, ${newTask}, 'todo', 'Media') RETURNING *`;
-    setTasks([res[0], ...tasks]);
-    setNewTask('');
-  };
-
+  const addTask = async (e) => { e.preventDefault(); if (!newTask.trim()) return; const res = await sql`INSERT INTO tasks (owner, title, status, priority) VALUES (${currentUser}, ${newTask}, 'todo', 'Media') RETURNING *`; setTasks([res[0], ...tasks]); setNewTask(''); };
   const moveTask = async (id, currentStatus, direction) => {
     const statuses = ['todo', 'doing', 'done'];
     const newIndex = direction === 'next' ? statuses.indexOf(currentStatus) + 1 : statuses.indexOf(currentStatus) - 1;
@@ -166,93 +173,19 @@ function App() {
       await sql`UPDATE tasks SET status = ${newStatus} WHERE id = ${id}`;
     }
   };
+  const deleteItem = async (table, id, setter) => { setter(prev => prev.filter(item => item.id !== id)); if (table === 'tasks') await sql`DELETE FROM tasks WHERE id = ${id}`; if (table === 'finance') await sql`DELETE FROM finance WHERE id = ${id}`; if (table === 'habits') await sql`DELETE FROM habits WHERE id = ${id}`; if (table === 'gym_logs') await sql`DELETE FROM gym_logs WHERE id = ${id}`; };
 
-  const addTransaction = async (e) => {
-    e.preventDefault();
-    if (!newFin.desc || !newFin.amount) return;
-    const res = await sql`INSERT INTO finance (owner, description, amount, type, date) VALUES (${currentUser}, ${newFin.desc}, ${newFin.amount}, ${newFin.type}, ${newFin.date}) RETURNING *`;
-    setFinance([res[0], ...finance]);
-    setNewFin({ ...newFin, desc: '', amount: '' });
-  };
+  const addTransaction = async (e) => { e.preventDefault(); if (!newFin.desc || !newFin.amount) return; const res = await sql`INSERT INTO finance (owner, description, amount, type, date) VALUES (${currentUser}, ${newFin.desc}, ${newFin.amount}, ${newFin.type}, ${newFin.date}) RETURNING *`; setFinance([res[0], ...finance]); setNewFin({ ...newFin, desc: '', amount: '' }); };
+  const addGymLog = async (e) => { e.preventDefault(); if (!newGym.exercise) return; const res = await sql`INSERT INTO gym_logs (owner, exercise, weight, reps) VALUES (${currentUser}, ${newGym.exercise}, ${newGym.weight}, ${newGym.reps}) RETURNING *`; setGymLogs([res[0], ...gymLogs]); setNewGym({ exercise: '', weight: '', reps: '' }); };
 
-  const addGymLog = async (e) => {
-    e.preventDefault();
-    if (!newGym.exercise) return;
-    const res = await sql`INSERT INTO gym_logs (owner, exercise, weight, reps) VALUES (${currentUser}, ${newGym.exercise}, ${newGym.weight}, ${newGym.reps}) RETURNING *`;
-    setGymLogs([res[0], ...gymLogs]);
-    setNewGym({ exercise: '', weight: '', reps: '' });
-  };
+  const addHabit = async (e) => { e.preventDefault(); if (!newHabit.title.trim()) return; const freqToSave = newHabit.freq === 'Siempre' ? 'Diario' : 'Semanal'; const targetDaysStr = newHabit.freq === 'Semanal' ? newHabit.selectedDays.join(',') : ''; const res = await sql`INSERT INTO habits (owner, title, frequency, target_days) VALUES (${currentUser}, ${newHabit.title}, ${freqToSave}, ${targetDaysStr}) RETURNING *`; setHabits([...habits, res[0]]); setNewHabit({ title: '', freq: 'Siempre', selectedDays: [] }); };
+  const toggleHabitDaySelection = (day) => { if (newHabit.selectedDays.includes(day)) { setNewHabit({ ...newHabit, selectedDays: newHabit.selectedDays.filter(d => d !== day) }); } else { setNewHabit({ ...newHabit, selectedDays: [...newHabit.selectedDays, day] }); } };
+  const toggleHabitToday = async (id, historyStr) => { const today = new Date().toISOString().split('T')[0]; let arr = historyStr ? historyStr.split(',') : []; arr.includes(today) ? arr = arr.filter(d => d !== today) : arr.push(today); const newHistory = arr.join(','); setHabits(prev => prev.map(h => h.id === id ? { ...h, history: newHistory } : h)); await sql`UPDATE habits SET history = ${newHistory} WHERE id = ${id}`; };
 
-  const addHabit = async (e) => {
-    e.preventDefault();
-    if (!newHabit.title.trim()) return;
+  const isHappeningNow = (timeRange) => { const todayName = days[new Date().getDay() - 1]; if (activeDay !== todayName) return false; try { const [start, end] = timeRange.split(' - '); const [startH, startM] = start.split(':').map(Number); const [endH, endM] = end.split(':').map(Number); const now = currentTime; const cur = now.getHours() * 60 + now.getMinutes(); let startT = startH * 60 + startM; let endT = endH * 60 + endM; if (endT < startT) endT += 24 * 60; return cur >= startT && cur < endT; } catch { return false; } };
+  const getIcon = (type) => { switch (type) { case 'Virtual': return <Monitor size={18} />; case 'Música': return <Music size={18} />; case 'Deporte': return <Dumbbell size={18} />; case 'Práctica': return <Stethoscope size={18} />; case 'Presencial': return currentUser === 'sofia' ? <Heart size={18} /> : <CheckSquare size={18} />; case 'Rutina': return <Coffee size={18} />; case 'Sueño': return <Moon size={18} />; case 'Comida': return <Utensils size={18} />; case 'Estudio': return <BookOpen size={18} />; default: return <Clock size={18} />; } };
 
-    const freqToSave = newHabit.freq === 'Siempre' ? 'Diario' : 'Semanal';
-    const targetDaysStr = newHabit.freq === 'Semanal' ? newHabit.selectedDays.join(',') : '';
-
-    const res = await sql`INSERT INTO habits (owner, title, frequency, target_days) VALUES (${currentUser}, ${newHabit.title}, ${freqToSave}, ${targetDaysStr}) RETURNING *`;
-    setHabits([...habits, res[0]]);
-    setNewHabit({ title: '', freq: 'Siempre', selectedDays: [] });
-  };
-
-  const toggleHabitDaySelection = (day) => {
-    if (newHabit.selectedDays.includes(day)) {
-      setNewHabit({ ...newHabit, selectedDays: newHabit.selectedDays.filter(d => d !== day) });
-    } else {
-      setNewHabit({ ...newHabit, selectedDays: [...newHabit.selectedDays, day] });
-    }
-  };
-
-  const toggleHabitToday = async (id, historyStr) => {
-    const today = new Date().toISOString().split('T')[0];
-    let arr = historyStr ? historyStr.split(',') : [];
-    arr.includes(today) ? arr = arr.filter(d => d !== today) : arr.push(today);
-    const newHistory = arr.join(',');
-    setHabits(prev => prev.map(h => h.id === id ? { ...h, history: newHistory } : h));
-    await sql`UPDATE habits SET history = ${newHistory} WHERE id = ${id}`;
-  };
-
-  const deleteItem = async (table, id, setter) => {
-    setter(prev => prev.filter(item => item.id !== id));
-    if (table === 'tasks') await sql`DELETE FROM tasks WHERE id = ${id}`;
-    if (table === 'finance') await sql`DELETE FROM finance WHERE id = ${id}`;
-    if (table === 'habits') await sql`DELETE FROM habits WHERE id = ${id}`;
-    if (table === 'gym_logs') await sql`DELETE FROM gym_logs WHERE id = ${id}`;
-  };
-
-  // --- UTILS ---
-  const isHappeningNow = (timeRange) => {
-    const todayName = days[new Date().getDay() - 1];
-    if (activeDay !== todayName) return false;
-    try {
-      const [start, end] = timeRange.split(' - ');
-      const [startH, startM] = start.split(':').map(Number);
-      const [endH, endM] = end.split(':').map(Number);
-      const now = currentTime;
-      const cur = now.getHours() * 60 + now.getMinutes();
-      let startT = startH * 60 + startM;
-      let endT = endH * 60 + endM;
-      if (endT < startT) endT += 24 * 60;
-      return cur >= startT && cur < endT;
-    } catch { return false; }
-  };
-
-  const getIcon = (type) => {
-    switch (type) {
-      case 'Virtual': return <Monitor size={18} />;
-      case 'Música': return <Music size={18} />;
-      case 'Deporte': return <Dumbbell size={18} />;
-      case 'Práctica': return <Stethoscope size={18} />;
-      case 'Presencial': return currentUser === 'sofia' ? <Heart size={18} /> : <CheckSquare size={18} />;
-      case 'Rutina': return <Coffee size={18} />;
-      case 'Sueño': return <Moon size={18} />;
-      case 'Comida': return <Utensils size={18} />;
-      case 'Estudio': return <BookOpen size={18} />;
-      default: return <Clock size={18} />;
-    }
-  };
-
-  // --- THEME STYLES ---
+  // --- THEME ---
   const isDark = theme === 'dark';
   const bgMain = isDark ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white' : 'bg-slate-50 text-slate-800';
   const bgCard = isDark ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm';
@@ -260,14 +193,11 @@ function App() {
   const textMain = isDark ? 'text-white' : 'text-slate-900';
   const inputBg = isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-800';
 
-  // --- RENDER (AQUÍ ES EL PRIMER RETURN CONDICIONAL) ---
   if (!currentUser) {
     return (
       <div className={`min-h-screen flex items-center justify-center p-6 transition-colors duration-500 ${isDark ? 'bg-slate-900' : 'bg-slate-50'}`}>
         <div className="absolute top-6 right-6">
-          <button onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')} className={`p-3 rounded-full transition-all ${isDark ? 'bg-white/10 text-yellow-400 hover:bg-white/20' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}>
-            {isDark ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
+          <button onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')} className={`p-3 rounded-full transition-all ${isDark ? 'bg-white/10 text-yellow-400 hover:bg-white/20' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}>{isDark ? <Sun size={20} /> : <Moon size={20} />}</button>
         </div>
         <div className="max-w-md w-full text-center space-y-8">
           <div><h1 className={`text-4xl font-extrabold mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>Planner 📅</h1><p className={textMuted}>Tu centro de comando personal</p></div>
@@ -290,10 +220,10 @@ function App() {
   return (
     <div className={`min-h-screen p-4 md:p-8 font-sans transition-colors duration-500 ${bgMain}`}>
       {isDark && (
-        <>
-          <div className="fixed top-10 left-10 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl opacity-30"></div>
-          <div className="fixed bottom-10 right-10 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl opacity-30"></div>
-        </>
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/2 -left-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl"></div>
+        </div>
       )}
 
       <div className="max-w-7xl mx-auto relative z-10">
@@ -314,7 +244,7 @@ function App() {
 
         {loading ? <div className="text-center py-20 animate-pulse text-slate-400">Cargando...</div> : (
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            {/* COLUMNA 1: HORARIO */}
+            {/* HORARIO */}
             <div className="xl:col-span-1 space-y-4">
               <div className={`p-6 rounded-3xl border h-full flex flex-col ${bgCard}`}>
                 <div className="flex justify-between items-center mb-4">
@@ -387,9 +317,45 @@ function App() {
 
                   {rightTab === 'finance' && (
                     <div className="space-y-6">
-                      <div className={`rounded-3xl p-8 text-white shadow-xl relative overflow-hidden ${totalBalance >= 0 ? 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20' : 'bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/20'}`}><div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div><p className="opacity-90 text-sm font-medium">Balance Total</p><h2 className="text-5xl font-black mt-2 tracking-tight">${totalBalance.toFixed(2)}</h2></div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* BALANCE */}
+                        <div className={`rounded-3xl p-8 text-white shadow-xl relative overflow-hidden ${totalBalance >= 0 ? 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20' : 'bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/20'}`}><div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div><p className="opacity-90 text-sm font-medium">Balance Total</p><h2 className="text-5xl font-black mt-2 tracking-tight">${totalBalance.toFixed(2)}</h2></div>
+
+                        {/* GRÁFICO PASTEL (Ingresos vs Gastos) */}
+                        <div className={`rounded-3xl p-4 border flex flex-col items-center justify-center ${bgCard}`}>
+                          <h4 className={`text-xs font-bold uppercase mb-2 ${textMuted}`}>Distribución</h4>
+                          <ResponsiveContainer width="100%" height={150}>
+                            <PieChart>
+                              <Pie data={financePieData} innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value">
+                                {financePieData.map((entry, index) => (<Cell key={`cell-${index}`} fill={index === 0 ? '#10B981' : '#EF4444'} />))}
+                              </Pie>
+                              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }} itemStyle={{ color: '#fff' }} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+
+                      {/* GRÁFICO DE ÁREA (Historial) */}
+                      <div className={`rounded-3xl p-4 border ${bgCard} h-64`}>
+                        <h4 className={`text-xs font-bold uppercase mb-4 ${textMuted}`}>Historial de Movimientos</h4>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={financeChartData}>
+                            <defs>
+                              <linearGradient id="colorIng" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10B981" stopOpacity={0.3} /><stop offset="95%" stopColor="#10B981" stopOpacity={0} /></linearGradient>
+                              <linearGradient id="colorGas" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#EF4444" stopOpacity={0.3} /><stop offset="95%" stopColor="#EF4444" stopOpacity={0} /></linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#334155" : "#e2e8f0"} />
+                            <XAxis dataKey="date" stroke={isDark ? "#94a3b8" : "#64748b"} fontSize={10} tickFormatter={(str) => str.substring(5)} />
+                            <YAxis stroke={isDark ? "#94a3b8" : "#64748b"} fontSize={10} />
+                            <Tooltip contentStyle={{ backgroundColor: isDark ? '#1e293b' : '#fff', border: isDark ? 'none' : '1px solid #e2e8f0', borderRadius: '8px' }} />
+                            <Area type="monotone" dataKey="ingresos" stroke="#10B981" fillOpacity={1} fill="url(#colorIng)" />
+                            <Area type="monotone" dataKey="gastos" stroke="#EF4444" fillOpacity={1} fill="url(#colorGas)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+
                       <form onSubmit={addTransaction} className={`p-4 rounded-2xl border flex flex-wrap gap-2 ${bgCard}`}><input type="date" value={newFin.date} onChange={e => setNewFin({ ...newFin, date: e.target.value })} className={`p-2 rounded-lg text-xs outline-none ${inputBg}`} /><input value={newFin.desc} onChange={e => setNewFin({ ...newFin, desc: e.target.value })} placeholder="Gasto..." className={`flex-grow p-2 rounded-lg text-sm outline-none ${inputBg}`} /><input type="number" value={newFin.amount} onChange={e => setNewFin({ ...newFin, amount: e.target.value })} placeholder="$" className={`w-20 p-2 rounded-lg text-sm outline-none ${inputBg}`} /><select value={newFin.type} onChange={e => setNewFin({ ...newFin, type: e.target.value })} className={`p-2 rounded-lg text-sm outline-none ${inputBg}`}><option value="gasto" className="text-slate-800">Gasto</option><option value="ingreso" className="text-slate-800">Ingreso</option></select><button type="submit" className="bg-emerald-600 text-white px-4 rounded-lg font-bold hover:bg-emerald-700">+</button></form>
-                      <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">{finance.map(f => (<div key={f.id} className={`flex justify-between items-center p-3 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-white border-slate-200'}`}><div className="flex flex-col"><span className={`font-bold ${textMain}`}>{f.description}</span><span className="text-xs text-slate-400">{f.date}</span></div><div className="flex items-center gap-2"><span className={`font-bold ${f.type === 'ingreso' ? 'text-emerald-500' : 'text-red-500'}`}>{f.type === 'ingreso' ? '+' : '-'}${f.amount}</span><button onClick={() => deleteItem('finance', f.id, setFinance)}><Trash2 size={14} className="text-slate-400 hover:text-red-400" /></button></div></div>))}</div>
+                      <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">{finance.map(f => (<div key={f.id} className={`flex justify-between items-center p-3 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-white border-slate-200'}`}><div className="flex flex-col"><span className={`font-bold ${textMain}`}>{f.description}</span><span className="text-xs text-slate-400">{f.date}</span></div><div className="flex items-center gap-2"><span className={`font-bold ${f.type === 'ingreso' ? 'text-emerald-500' : 'text-red-500'}`}>{f.type === 'ingreso' ? '+' : '-'}${f.amount}</span><button onClick={() => deleteItem('finance', f.id, setFinance)}><Trash2 size={14} className="text-slate-400 hover:text-red-400" /></button></div></div>))}</div>
                     </div>
                   )}
 
@@ -400,9 +366,21 @@ function App() {
                     </div>
                   )}
 
-                  {/* HABITS TAB (UPDATED) */}
+                  {/* HABITS TAB (UPDATED WITH CHART) */}
                   {rightTab === 'habits' && (
                     <div className="space-y-6">
+                      {/* GRÁFICO DE HÁBITOS */}
+                      <div className={`p-4 rounded-3xl border ${bgCard} h-48`}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={habitChartData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? "#334155" : "#e2e8f0"} />
+                            <XAxis dataKey="name" stroke={isDark ? "#94a3b8" : "#64748b"} fontSize={10} interval={0} />
+                            <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: isDark ? '#1e293b' : '#fff', border: 'none', borderRadius: '8px' }} />
+                            <Bar dataKey="dias" fill="#F97316" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+
                       <div className={`p-4 rounded-2xl border ${bgCard}`}>
                         <h3 className={`font-bold mb-2 ${textMain}`}>Nuevo Hábito</h3>
                         <div className="flex flex-col gap-2">
@@ -418,7 +396,7 @@ function App() {
                               </div>
                             )}
                           </div>
-                          <button onClick={addHabit} className="bg-orange-500 text-white py-2 rounded-lg font-bold mt-1 hover:bg-orange-600">Crear Hábito</button>
+                          <button onClick={addHabit} className="bg-orange-500 text-white py-2 rounded-lg font-bold mt-1 hover:bg-orange-600 transition-transform hover:scale-[1.02]">Crear Hábito</button>
                         </div>
                       </div>
                       <div className="space-y-3">
@@ -426,7 +404,7 @@ function App() {
                           const historyArr = h.history ? h.history.split(',') : [];
                           const isDone = historyArr.includes(new Date().toISOString().split('T')[0]);
                           return (
-                            <div key={h.id} className={`p-4 rounded-2xl border flex justify-between items-center ${isDone ? (isDark ? 'bg-orange-500/10 border-orange-500/30' : 'bg-orange-50 border-orange-200') : (isDark ? 'bg-white/5 border-white/5' : 'bg-white border-slate-200')}`}>
+                            <div key={h.id} className={`p-4 rounded-2xl border flex justify-between items-center ${isDone ? (isDark ? 'bg-orange-500/10 border-orange-500/50' : 'bg-orange-50 border-orange-200') : (isDark ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}`}>
                               <div>
                                 <span className={`font-bold block ${textMain}`}>{h.title}</span>
                                 <span className="text-xs text-slate-400 flex items-center gap-1">
