@@ -18,7 +18,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [rightTab, setRightTab] = useState('kanban');
   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
-  const [theme, setTheme] = useState('dark'); // 'dark' | 'light'
+  const [theme, setTheme] = useState('dark');
 
   const [schedule, setSchedule] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -30,11 +30,11 @@ function App() {
   const [newClass, setNewClass] = useState({ title: '', start: '07:00', end: '09:00', type: 'Presencial', location: '', day: 'Lunes' });
   const [newTask, setNewTask] = useState('');
   const [newFin, setNewFin] = useState({ desc: '', amount: '', type: 'gasto', date: new Date().toISOString().split('T')[0] });
-
-  // HÁBITOS: Ahora con opción "Siempre"
   const [newHabit, setNewHabit] = useState({ title: '', freq: 'Siempre', selectedDays: [] });
-
   const [newGym, setNewGym] = useState({ exercise: '', weight: '', reps: '' });
+
+  // --- EFECTOS (HOOKS) ---
+  // IMPORTANTE: Todos los useEffect deben ir AQUÍ ARRIBA, antes de cualquier return
 
   useEffect(() => {
     if (currentUser) {
@@ -48,6 +48,52 @@ function App() {
     return () => clearInterval(timer);
   }, [currentUser]);
 
+  // Sistema de Notificaciones (Corregido para Android y Web)
+  useEffect(() => {
+    // 1. Pedir permiso
+    if (Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  useEffect(() => {
+    const checkNotifications = () => {
+      if (Notification.permission !== 'granted' || !currentUser) return;
+
+      const now = new Date();
+      const currentDayName = days[now.getDay() - 1];
+      const currentHour = now.getHours().toString().padStart(2, '0');
+      const currentMinute = now.getMinutes().toString().padStart(2, '0');
+      const currentTimeStr = `${currentHour}:${currentMinute}`;
+
+      const userSchedule = schedule.filter(t => t.day === currentDayName);
+
+      userSchedule.forEach(task => {
+        const startTime = task.time_range.split(' - ')[0].trim();
+
+        // Comprobar si es la hora exacta (segundo 0)
+        if (startTime === currentTimeStr && now.getSeconds() < 2) {
+          try {
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+
+            new Notification(`🔔 ${task.title}`, {
+              body: `Es hora de ${task.title} en ${task.location}`,
+              icon: '/pwa-192x192.png',
+              vibrate: [200, 100, 200]
+            });
+          } catch (e) {
+            console.error("Error notificando", e);
+          }
+        }
+      });
+    };
+
+    const interval = setInterval(checkNotifications, 1000);
+    return () => clearInterval(interval);
+  }, [schedule, currentUser]);
+
+
+  // --- CARGA DE DATOS ---
   const fetchData = async () => {
     try {
       const scheduleData = await sql`SELECT * FROM schedule WHERE owner = ${currentUser} ORDER BY day, time_range ASC`;
@@ -110,6 +156,7 @@ function App() {
     setTasks([res[0], ...tasks]);
     setNewTask('');
   };
+
   const moveTask = async (id, currentStatus, direction) => {
     const statuses = ['todo', 'doing', 'done'];
     const newIndex = direction === 'next' ? statuses.indexOf(currentStatus) + 1 : statuses.indexOf(currentStatus) - 1;
@@ -136,13 +183,10 @@ function App() {
     setNewGym({ exercise: '', weight: '', reps: '' });
   };
 
-  // --- ACTIONS HÁBITOS (MEJORADO) ---
   const addHabit = async (e) => {
     e.preventDefault();
     if (!newHabit.title.trim()) return;
 
-    // Si es "Siempre", guardamos 'Diario' en la DB para mantener compatibilidad, 
-    // pero la UI lo mostrará como Siempre.
     const freqToSave = newHabit.freq === 'Siempre' ? 'Diario' : 'Semanal';
     const targetDaysStr = newHabit.freq === 'Semanal' ? newHabit.selectedDays.join(',') : '';
 
@@ -216,9 +260,7 @@ function App() {
   const textMain = isDark ? 'text-white' : 'text-slate-900';
   const inputBg = isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-800';
 
-
-
-  // --- RENDER ---
+  // --- RENDER (AQUÍ ES EL PRIMER RETURN CONDICIONAL) ---
   if (!currentUser) {
     return (
       <div className={`min-h-screen flex items-center justify-center p-6 transition-colors duration-500 ${isDark ? 'bg-slate-900' : 'bg-slate-50'}`}>
@@ -248,10 +290,10 @@ function App() {
   return (
     <div className={`min-h-screen p-4 md:p-8 font-sans transition-colors duration-500 ${bgMain}`}>
       {isDark && (
-        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
-          <div className="absolute top-1/2 -left-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl"></div>
-        </div>
+        <>
+          <div className="fixed top-10 left-10 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl opacity-30"></div>
+          <div className="fixed bottom-10 right-10 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl opacity-30"></div>
+        </>
       )}
 
       <div className="max-w-7xl mx-auto relative z-10">
@@ -376,7 +418,7 @@ function App() {
                               </div>
                             )}
                           </div>
-                          <button onClick={addHabit} className="bg-orange-500 text-white py-2 rounded-lg font-bold mt-1 hover:bg-orange-600 transition-transform hover:scale-[1.02]">Crear Hábito</button>
+                          <button onClick={addHabit} className="bg-orange-500 text-white py-2 rounded-lg font-bold mt-1 hover:bg-orange-600">Crear Hábito</button>
                         </div>
                       </div>
                       <div className="space-y-3">
@@ -384,7 +426,7 @@ function App() {
                           const historyArr = h.history ? h.history.split(',') : [];
                           const isDone = historyArr.includes(new Date().toISOString().split('T')[0]);
                           return (
-                            <div key={h.id} className={`p-4 rounded-2xl border flex justify-between items-center ${isDone ? (isDark ? 'bg-orange-500/10 border-orange-500/50' : 'bg-orange-50 border-orange-200') : (isDark ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}`}>
+                            <div key={h.id} className={`p-4 rounded-2xl border flex justify-between items-center ${isDone ? (isDark ? 'bg-orange-500/10 border-orange-500/30' : 'bg-orange-50 border-orange-200') : (isDark ? 'bg-white/5 border-white/5' : 'bg-white border-slate-200')}`}>
                               <div>
                                 <span className={`font-bold block ${textMain}`}>{h.title}</span>
                                 <span className="text-xs text-slate-400 flex items-center gap-1">
