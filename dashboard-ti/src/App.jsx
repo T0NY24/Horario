@@ -241,7 +241,7 @@ function App() {
             </div>
             <div>
               <h1 className={`text-2xl md:text-3xl font-black tracking-tight ${textMain}`}>
-                {currentUser === 'anthony' ? 'Anthony OS' : 'Sofia OS'}
+                Planner <span className="text-accent">{currentUser === 'anthony' ? '(Anthony)' : '(Sofia)'}</span>
               </h1>
               <p className={`${textMuted} text-sm mt-1 flex items-center gap-2`}>
                 <Calendar size={14} /> {activeDay} • {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
