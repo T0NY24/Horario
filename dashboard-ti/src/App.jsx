@@ -243,6 +243,51 @@ function App() {
   const dailySchedule = schedule.filter(t => t.day === activeDay);
   const totalBalance = finance.reduce((acc, curr) => curr.type === 'ingreso' ? acc + parseFloat(curr.amount) : acc - parseFloat(curr.amount), 0);
 
+  // --- SISTEMA DE NOTIFICACIONES ANDROID ---
+  useEffect(() => {
+    // 1. Pedir permiso apenas abra la app
+    if ("Notification" in window && Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  useEffect(() => {
+    const checkNotifications = () => {
+      // Solo notificar si hay permiso
+      if (!("Notification" in window) || Notification.permission !== 'granted') return;
+
+      const now = new Date();
+      const currentDayName = days[now.getDay() - 1];
+      const currentHour = now.getHours().toString().padStart(2, '0');
+      const currentMinute = now.getMinutes().toString().padStart(2, '0');
+      const currentTimeStr = `${currentHour}:${currentMinute}`;
+
+      // Filtrar horario del usuario actual (Sofia o Anthony)
+      const userSchedule = schedule.filter(t => t.day === currentDayName);
+
+      userSchedule.forEach(task => {
+        // La hora en DB viene como "17:00 - 19:00". Sacamos la primera parte.
+        const startTime = task.time_range.split(' - ')[0].trim(); // "17:00"
+
+        // Si son las 17:00:00 (aprox), mandar alerta
+        if (startTime === currentTimeStr && now.getSeconds() < 2) {
+          // Vibración en Android
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+
+          new Notification(`🔔 Clase Ahora: ${task.title}`, {
+            body: `Es hora de ${task.title} en ${task.location}`,
+            icon: '/pwa-192x192.png', // Usa el icono de la app
+            vibrate: [200, 100, 200]
+          });
+        }
+      });
+    };
+
+    // Revisar cada segundo para ser precisos con la hora
+    const interval = setInterval(checkNotifications, 1000); // Check cada segundo
+    return () => clearInterval(interval);
+  }, [schedule, currentUser]);
+
   return (
     <div className={`min-h-screen p-4 md:p-8 font-sans transition-colors duration-500 ${bgMain}`}>
       {isDark && (
