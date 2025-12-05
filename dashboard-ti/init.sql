@@ -1,27 +1,56 @@
--- 1. LIMPIEZA: Eliminar tablas viejas para evitar errores
+-- 1. LIMPIEZA
 DROP TABLE IF EXISTS schedule;
+
+DROP TABLE IF EXISTS tasks;
+
+DROP TABLE IF EXISTS finance;
+
+DROP TABLE IF EXISTS habits;
 
 DROP TABLE IF EXISTS notes;
 
--- 2. ESTRUCTURA: Crear la tabla con la columna 'sort_order' (IMPORTANTE)
+-- 2. CREAR TABLAS
 CREATE TABLE schedule (
     id SERIAL PRIMARY KEY,
+    owner VARCHAR(20) NOT NULL, -- 'anthony' o 'sofia'
     day VARCHAR(20),
     time_range VARCHAR(50),
     title VARCHAR(100),
     type VARCHAR(50),
     location VARCHAR(100),
     is_completed BOOLEAN DEFAULT FALSE,
-    sort_order INTEGER -- Esta columna es la que ordenará tu día
+    sort_order INTEGER
 );
 
-CREATE TABLE notes ( id SERIAL PRIMARY KEY, content TEXT );
+CREATE TABLE tasks (
+    id SERIAL PRIMARY KEY,
+    owner VARCHAR(20) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    priority VARCHAR(20) DEFAULT 'Media',
+    status VARCHAR(20) DEFAULT 'todo'
+);
 
--- 3. DATOS: Insertar tu horario completo
+CREATE TABLE finance (
+    id SERIAL PRIMARY KEY,
+    owner VARCHAR(20) NOT NULL,
+    description VARCHAR(100),
+    amount DECIMAL(10, 2),
+    type VARCHAR(10)
+);
 
--- LUNES
+CREATE TABLE habits (
+    id SERIAL PRIMARY KEY,
+    owner VARCHAR(20) NOT NULL,
+    title VARCHAR(100),
+    history TEXT DEFAULT ''
+);
+
+-- ==========================================
+-- 3. DATOS DE ANTHONY (TI)
+-- ==========================================
 INSERT INTO
     schedule (
+        owner,
         day,
         time_range,
         title,
@@ -30,113 +59,54 @@ INSERT INTO
         sort_order
     )
 VALUES (
-        'Lunes',
-        '06:00 - 06:30',
-        'Despertar + Aseo',
-        'Rutina',
-        '🏠 Casa',
-        1
-    ),
-    (
-        'Lunes',
-        '06:30 - 07:00',
-        'Desayuno Ligero',
-        'Rutina',
-        '🏠 Cocina',
-        2
-    ),
-    (
+        'anthony',
         'Lunes',
         '07:00 - 09:00',
         'Inglés',
         'Virtual',
         '🏠 Escritorio',
-        3
+        1
     ),
     (
-        'Lunes',
-        '09:00 - 09:15',
-        'Preparar Mochila',
-        'Rutina',
-        '🏠 Casa',
-        4
-    ),
-    (
-        'Lunes',
-        '09:15 - 10:00',
-        'Transporte a U',
-        'Transporte',
-        '🚌 Bus',
-        5
-    ),
-    (
+        'anthony',
         'Lunes',
         '10:00 - 13:00',
         'Prácticas Pre',
         'Presencial',
         '🏫 Universidad',
-        6
+        2
     ),
     (
+        'anthony',
         'Lunes',
-        '13:00 - 13:30',
-        'Almuerzo',
-        'Comida',
-        '🏫 Comedor U',
-        7
-    ),
-    (
-        'Lunes',
-        '13:30 - 15:00',
-        'Bibliot. (Deberes)',
+        '13:00 - 15:00',
+        'Almuerzo + Deberes',
         'Estudio',
         '📚 Biblioteca',
-        8
+        3
     ),
     (
+        'anthony',
         'Lunes',
         '15:00 - 18:00',
         'Simulación',
         'Presencial',
         '🏫 Aula 102',
-        9
+        4
     ),
     (
+        'anthony',
         'Lunes',
         '18:00 - 21:00',
         'Gestión Calidad',
         'Presencial',
         '🏫 Aula 204',
-        10
-    ),
-    (
-        'Lunes',
-        '21:00 - 21:30',
-        'Regreso a Casa',
-        'Transporte',
-        '🚌 Bus',
-        11
-    ),
-    (
-        'Lunes',
-        '21:30 - 22:00',
-        'Cena + Relax',
-        'Rutina',
-        '🏠 Casa',
-        12
-    ),
-    (
-        'Lunes',
-        '22:00 - 06:00',
-        'DORMIR',
-        'Sueño',
-        '💤 Cama',
-        13
+        5
     );
 
--- MARTES
 INSERT INTO
     schedule (
+        owner,
         day,
         time_range,
         title,
@@ -145,97 +115,45 @@ INSERT INTO
         sort_order
     )
 VALUES (
-        'Martes',
-        '06:30 - 07:00',
-        'Rutina Mañana',
-        'Rutina',
-        '🏠 Casa',
-        1
-    ),
-    (
+        'anthony',
         'Martes',
         '07:00 - 09:00',
         'Inglés',
         'Virtual',
         '🏠 Casa',
-        2
+        1
     ),
     (
-        'Martes',
-        '09:00 - 10:00',
-        'Transporte',
-        'Transporte',
-        '🚌 Bus',
-        3
-    ),
-    (
+        'anthony',
         'Martes',
         '10:00 - 13:00',
         'Prácticas Pre',
         'Presencial',
         '🏫 U',
-        4
+        2
     ),
     (
+        'anthony',
         'Martes',
-        '13:00 - 13:30',
-        'Regreso a Casa',
-        'Transporte',
-        '🚌 Bus',
-        5
-    ),
-    (
-        'Martes',
-        '13:30 - 14:30',
-        'Almuerzo Casero',
-        'Comida',
-        '🏠 Casa',
-        6
-    ),
-    (
-        'Martes',
-        '14:30 - 17:00',
+        '13:30 - 17:00',
         'PRODUCCIÓN MUSICAL',
         'Música',
         '🎹 Studio',
-        7
+        3
     ),
     (
+        'anthony',
         'Martes',
         '17:00 - 19:00',
         'Computación',
         'Virtual',
         '🏠 Casa',
-        8
-    ),
-    (
-        'Martes',
-        '19:00 - 20:00',
-        'Cena / Libre',
-        'Rutina',
-        '🏠 Casa',
-        9
-    ),
-    (
-        'Martes',
-        '20:00 - 22:00',
-        'Repaso Ligero',
-        'Estudio',
-        '🏠 Casa',
-        10
-    ),
-    (
-        'Martes',
-        '22:30 - 06:30',
-        'DORMIR',
-        'Sueño',
-        '💤 Cama',
-        11
+        4
     );
 
--- MIÉRCOLES
 INSERT INTO
     schedule (
+        owner,
         day,
         time_range,
         title,
@@ -244,97 +162,45 @@ INSERT INTO
         sort_order
     )
 VALUES (
-        'Miércoles',
-        '06:30 - 07:00',
-        'Desayuno',
-        'Rutina',
-        '🏠 Casa',
-        1
-    ),
-    (
+        'anthony',
         'Miércoles',
         '07:00 - 09:00',
         'Inglés',
         'Virtual',
         '🏠 Casa',
-        2
+        1
     ),
     (
-        'Miércoles',
-        '09:00 - 10:00',
-        'Transporte',
-        'Transporte',
-        '🚌 Bus',
-        3
-    ),
-    (
+        'anthony',
         'Miércoles',
         '10:00 - 13:00',
         'Prácticas Pre',
         'Presencial',
         '🏫 U',
-        4
+        2
     ),
     (
-        'Miércoles',
-        '13:00 - 13:30',
-        'Regreso',
-        'Transporte',
-        '🚌 Bus',
-        5
-    ),
-    (
-        'Miércoles',
-        '13:30 - 15:00',
-        'Almuerzo + Descanso',
-        'Comida',
-        '🏠 Casa',
-        6
-    ),
-    (
+        'anthony',
         'Miércoles',
         '15:00 - 17:00',
         'GYM / DEPORTE',
         'Deporte',
         '🏋️ Gym',
-        7
+        3
     ),
     (
-        'Miércoles',
-        '17:00 - 18:30',
-        'Ducha + Merienda',
-        'Rutina',
-        '🏠 Casa',
-        8
-    ),
-    (
-        'Miércoles',
-        '18:30 - 19:00',
-        'Prep. Clase',
-        'Estudio',
-        '🏠 Escritorio',
-        9
-    ),
-    (
+        'anthony',
         'Miércoles',
         '19:00 - 22:00',
         'Legislación',
         'Virtual',
         '🏠 Casa',
-        10
-    ),
-    (
-        'Miércoles',
-        '22:30 - 06:30',
-        'DORMIR',
-        'Sueño',
-        '💤 Cama',
-        11
+        4
     );
 
--- JUEVES
 INSERT INTO
     schedule (
+        owner,
         day,
         time_range,
         title,
@@ -343,81 +209,27 @@ INSERT INTO
         sort_order
     )
 VALUES (
-        'Jueves',
-        '07:30 - 08:30',
-        'Despertar + Desayuno',
-        'Rutina',
-        '🏠 Casa',
-        1
-    ),
-    (
-        'Jueves',
-        '08:30 - 09:30',
-        'Transporte',
-        'Transporte',
-        '🚌 Bus',
-        2
-    ),
-    (
+        'anthony',
         'Jueves',
         '10:00 - 12:00',
         'Programación',
         'Presencial',
-        '🏫 Campus Loja',
-        3
+        '🏫 Campus',
+        1
     ),
     (
-        'Jueves',
-        '12:00 - 13:30',
-        'Almuerzo',
-        'Comida',
-        '🏫 Cerca U',
-        4
-    ),
-    (
-        'Jueves',
-        '13:30 - 15:00',
-        'Biblioteca (Focus)',
-        'Estudio',
-        '📚 U',
-        5
-    ),
-    (
+        'anthony',
         'Jueves',
         '15:00 - 17:00',
         'Prácticas Pre',
         'Presencial',
         '🏫 U',
-        6
-    ),
-    (
-        'Jueves',
-        '17:00 - 17:30',
-        'Regreso',
-        'Transporte',
-        '🚌 Bus',
-        7
-    ),
-    (
-        'Jueves',
-        '18:00 - 20:00',
-        'Música (Teoría)',
-        'Música',
-        '🎹 Casa',
-        8
-    ),
-    (
-        'Jueves',
-        '20:00 - 23:00',
-        'Cena + Series',
-        'Descanso',
-        '🏠 Casa',
-        9
+        2
     );
 
--- VIERNES
 INSERT INTO
     schedule (
+        owner,
         day,
         time_range,
         title,
@@ -426,73 +238,36 @@ INSERT INTO
         sort_order
     )
 VALUES (
-        'Viernes',
-        '06:30 - 07:15',
-        'Rutina Mañana',
-        'Rutina',
-        '🏠 Casa',
-        1
-    ),
-    (
-        'Viernes',
-        '07:15 - 08:00',
-        'Transporte',
-        'Transporte',
-        '🚌 Bus',
-        2
-    ),
-    (
+        'anthony',
         'Viernes',
         '08:00 - 10:00',
         'Programación',
         'Presencial',
         '🏫 Campus',
-        3
+        1
     ),
     (
-        'Viernes',
-        '10:00 - 10:30',
-        'Regreso',
-        'Transporte',
-        '🚌 Bus',
-        4
-    ),
-    (
+        'anthony',
         'Viernes',
         '10:30 - 15:00',
         'PRODUCCIÓN DEEP',
         'Música',
         '🎹 Studio',
-        5
+        2
     ),
     (
-        'Viernes',
-        '15:00 - 16:00',
-        'Transporte',
-        'Transporte',
-        '🚌 Bus',
-        6
-    ),
-    (
+        'anthony',
         'Viernes',
         '16:00 - 18:00',
         'Arquitectura',
         'Presencial',
         '🏫 Campus',
-        7
-    ),
-    (
-        'Viernes',
-        '19:00 - 23:00',
-        'LIBRE / SOCIAL',
-        'Social',
-        '🍻',
-        8
+        3
     );
 
--- SÁBADO
 INSERT INTO
     schedule (
+        owner,
         day,
         time_range,
         title,
@@ -501,41 +276,223 @@ INSERT INTO
         sort_order
     )
 VALUES (
-        'Sábado',
-        '06:30 - 07:00',
-        'Café',
-        'Rutina',
-        '🏠 Casa',
-        1
-    ),
-    (
+        'anthony',
         'Sábado',
         '07:00 - 10:00',
         'Computación',
         'Virtual',
         '🏠 Casa',
+        1
+    );
+
+-- ==========================================
+-- 4. DATOS DE SOFIA (ENFERMERÍA)
+-- ==========================================
+-- Lunes
+INSERT INTO
+    schedule (
+        owner,
+        day,
+        time_range,
+        title,
+        type,
+        location,
+        sort_order
+    )
+VALUES (
+        'sofia',
+        'Lunes',
+        '09:00 - 10:00',
+        'Enf. Mujer y Recién Nacido',
+        'Presencial',
+        '🏥 Facultad',
+        1
+    ),
+    (
+        'sofia',
+        'Lunes',
+        '12:00 - 13:00',
+        'Enf. Mujer y Recién Nacido',
+        'Presencial',
+        '🏥 Facultad',
         2
     ),
     (
-        'Sábado',
-        '10:00 - 12:00',
-        'Fútbol / Deporte',
-        'Deporte',
-        '⚽ Canchas',
+        'sofia',
+        'Lunes',
+        '15:00 - 18:00',
+        'Enf. Niño y Adolescente',
+        'Presencial',
+        '🏥 Facultad',
         3
     ),
     (
-        'Sábado',
-        '13:00 - 18:00',
-        'Música / Beats',
-        'Música',
-        '🎹 Studio',
+        'sofia',
+        'Lunes',
+        '18:00 - 19:00',
+        'Enf. Mujer y Recién Nacido',
+        'Presencial',
+        '🏥 Facultad',
         4
     );
-
--- MENSAJE DE ÉXITO
+-- Martes
 INSERT INTO
-    notes (content)
+    schedule (
+        owner,
+        day,
+        time_range,
+        title,
+        type,
+        location,
+        sort_order
+    )
 VALUES (
-        '¡Base de datos sincronizada y funcionando!'
+        'sofia',
+        'Martes',
+        '17:00 - 20:00',
+        'Practicum 2',
+        'Práctica',
+        '🚑 Hospital/Clínica',
+        1
+    ),
+    (
+        'sofia',
+        'Martes',
+        '20:00 - 22:00',
+        'Practicum 2 (Continuación)',
+        'Práctica',
+        '🚑 Hospital/Clínica',
+        2
+    );
+-- Miércoles
+INSERT INTO
+    schedule (
+        owner,
+        day,
+        time_range,
+        title,
+        type,
+        location,
+        sort_order
+    )
+VALUES (
+        'sofia',
+        'Miércoles',
+        '19:00 - 21:00',
+        'Psicología en Enfermería',
+        'Presencial',
+        '🏫 Aula',
+        1
+    );
+-- Jueves
+INSERT INTO
+    schedule (
+        owner,
+        day,
+        time_range,
+        title,
+        type,
+        location,
+        sort_order
+    )
+VALUES (
+        'sofia',
+        'Jueves',
+        '14:00 - 15:00',
+        'Enf. Niño y Adolescente',
+        'Presencial',
+        '🏥 Facultad',
+        1
+    ),
+    (
+        'sofia',
+        'Jueves',
+        '18:00 - 21:00',
+        'Enf. Niño y Adolescente',
+        'Presencial',
+        '🏥 Facultad',
+        2
+    );
+-- Viernes
+INSERT INTO
+    schedule (
+        owner,
+        day,
+        time_range,
+        title,
+        type,
+        location,
+        sort_order
+    )
+VALUES (
+        'sofia',
+        'Viernes',
+        '10:00 - 11:00',
+        'Bioética',
+        'Presencial',
+        '🏫 Aula',
+        1
+    ),
+    (
+        'sofia',
+        'Viernes',
+        '11:00 - 12:00',
+        'Bioética',
+        'Presencial',
+        '🏫 Aula',
+        2
+    ),
+    (
+        'sofia',
+        'Viernes',
+        '13:00 - 14:00',
+        'Bioética',
+        'Presencial',
+        '🏫 Aula',
+        3
+    ),
+    (
+        'sofia',
+        'Viernes',
+        '14:00 - 17:00',
+        'Practicum 2',
+        'Práctica',
+        '🚑 Hospital',
+        4
+    ),
+    (
+        'sofia',
+        'Viernes',
+        '18:00 - 21:00',
+        'Psicología en Enfermería',
+        'Presencial',
+        '🏫 Aula',
+        5
+    );
+
+-- Tareas de Ejemplo
+INSERT INTO
+    tasks (
+        owner,
+        title,
+        priority,
+        status
+    )
+VALUES (
+        'anthony',
+        'Subir cambios a GitHub',
+        'Alta',
+        'todo'
+    ),
+    (
+        'sofia',
+        'Comprar uniforme prácticas',
+        'Alta',
+        'todo'
+    ),
+    (
+        'sofia',
+        'Leer guía de Bioética',
+        'Media',
+        'doing'
     );
