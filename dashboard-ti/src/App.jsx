@@ -6,7 +6,6 @@ import {
   Heart, Stethoscope, LogOut, Flame, Download, Edit3, X, Save, Infinity as InfinityIcon,
   Sun, Moon, Sparkles, Utensils, BookOpen, Coffee, TrendingUp, PieChart as PieIcon
 } from 'lucide-react';
-// IMPORTAMOS LOS GRÁFICOS
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, Legend
@@ -14,9 +13,6 @@ import {
 
 const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const sql = neon(import.meta.env.VITE_DATABASE_URL);
-
-// Colores para gráficos
-const COLORS = ['#10B981', '#EF4444', '#F59E0B', '#6366F1'];
 
 function App() {
   // --- STATES ---
@@ -54,7 +50,6 @@ function App() {
     return () => clearInterval(timer);
   }, [currentUser]);
 
-  // Notificaciones
   useEffect(() => {
     if (Notification.permission !== 'granted') Notification.requestPermission();
   }, []);
@@ -87,17 +82,19 @@ function App() {
     return () => clearInterval(interval);
   }, [schedule, currentUser]);
 
-  // --- DATA PROCESSING FOR CHARTS ---
+  // --- DATA PROCESSING (CORREGIDO PARA FECHAS) ---
   const financeChartData = useMemo(() => {
-    // Agrupar finanzas por fecha para el gráfico de área
     const grouped = {};
     finance.forEach(f => {
-      const date = f.date; // Asumimos formato YYYY-MM-DD
-      if (!grouped[date]) grouped[date] = { date, ingresos: 0, gastos: 0 };
-      if (f.type === 'ingreso') grouped[date].ingresos += parseFloat(f.amount);
-      else grouped[date].gastos += parseFloat(f.amount);
+      // CORRECCIÓN 1: Manejo seguro de fechas
+      const d = new Date(f.date);
+      const dateStr = !isNaN(d) ? d.toISOString().split('T')[0] : 'N/A';
+
+      if (!grouped[dateStr]) grouped[dateStr] = { date: dateStr, ingresos: 0, gastos: 0 };
+      if (f.type === 'ingreso') grouped[dateStr].ingresos += parseFloat(f.amount);
+      else grouped[dateStr].gastos += parseFloat(f.amount);
     });
-    return Object.values(grouped).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-7); // Últimos 7 movimientos
+    return Object.values(grouped).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-7);
   }, [finance]);
 
   const financePieData = useMemo(() => {
@@ -113,7 +110,7 @@ function App() {
     return habits.map(h => {
       const historyArr = h.history ? h.history.split(',') : [];
       return {
-        name: h.title.substring(0, 10) + '...', // Acortar nombre
+        name: h.title.length > 10 ? h.title.substring(0, 10) + '...' : h.title,
         dias: historyArr.length
       };
     });
@@ -152,7 +149,7 @@ function App() {
     link.click();
   };
 
-  // --- ACTIONS (Igual que antes) ---
+  // --- ACTIONS ---
   const addScheduleItem = async (e) => {
     e.preventDefault(); if (!newClass.title) return;
     const timeRange = `${newClass.start} - ${newClass.end}`;
@@ -244,7 +241,7 @@ function App() {
 
         {loading ? <div className="text-center py-20 animate-pulse text-slate-400">Cargando...</div> : (
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            {/* HORARIO */}
+            {/* COLUMNA 1: HORARIO */}
             <div className="xl:col-span-1 space-y-4">
               <div className={`p-6 rounded-3xl border h-full flex flex-col ${bgCard}`}>
                 <div className="flex justify-between items-center mb-4">
@@ -318,10 +315,8 @@ function App() {
                   {rightTab === 'finance' && (
                     <div className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* BALANCE */}
                         <div className={`rounded-3xl p-8 text-white shadow-xl relative overflow-hidden ${totalBalance >= 0 ? 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20' : 'bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/20'}`}><div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div><p className="opacity-90 text-sm font-medium">Balance Total</p><h2 className="text-5xl font-black mt-2 tracking-tight">${totalBalance.toFixed(2)}</h2></div>
 
-                        {/* GRÁFICO PASTEL (Ingresos vs Gastos) */}
                         <div className={`rounded-3xl p-4 border flex flex-col items-center justify-center ${bgCard}`}>
                           <h4 className={`text-xs font-bold uppercase mb-2 ${textMuted}`}>Distribución</h4>
                           <ResponsiveContainer width="100%" height={150}>
@@ -335,7 +330,6 @@ function App() {
                         </div>
                       </div>
 
-                      {/* GRÁFICO DE ÁREA (Historial) */}
                       <div className={`rounded-3xl p-4 border ${bgCard} h-64`}>
                         <h4 className={`text-xs font-bold uppercase mb-4 ${textMuted}`}>Historial de Movimientos</h4>
                         <ResponsiveContainer width="100%" height="100%">
@@ -355,7 +349,7 @@ function App() {
                       </div>
 
                       <form onSubmit={addTransaction} className={`p-4 rounded-2xl border flex flex-wrap gap-2 ${bgCard}`}><input type="date" value={newFin.date} onChange={e => setNewFin({ ...newFin, date: e.target.value })} className={`p-2 rounded-lg text-xs outline-none ${inputBg}`} /><input value={newFin.desc} onChange={e => setNewFin({ ...newFin, desc: e.target.value })} placeholder="Gasto..." className={`flex-grow p-2 rounded-lg text-sm outline-none ${inputBg}`} /><input type="number" value={newFin.amount} onChange={e => setNewFin({ ...newFin, amount: e.target.value })} placeholder="$" className={`w-20 p-2 rounded-lg text-sm outline-none ${inputBg}`} /><select value={newFin.type} onChange={e => setNewFin({ ...newFin, type: e.target.value })} className={`p-2 rounded-lg text-sm outline-none ${inputBg}`}><option value="gasto" className="text-slate-800">Gasto</option><option value="ingreso" className="text-slate-800">Ingreso</option></select><button type="submit" className="bg-emerald-600 text-white px-4 rounded-lg font-bold hover:bg-emerald-700">+</button></form>
-                      <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">{finance.map(f => (<div key={f.id} className={`flex justify-between items-center p-3 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-white border-slate-200'}`}><div className="flex flex-col"><span className={`font-bold ${textMain}`}>{f.description}</span><span className="text-xs text-slate-400">{f.date}</span></div><div className="flex items-center gap-2"><span className={`font-bold ${f.type === 'ingreso' ? 'text-emerald-500' : 'text-red-500'}`}>{f.type === 'ingreso' ? '+' : '-'}${f.amount}</span><button onClick={() => deleteItem('finance', f.id, setFinance)}><Trash2 size={14} className="text-slate-400 hover:text-red-400" /></button></div></div>))}</div>
+                      <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">{finance.map(f => (<div key={f.id} className={`flex justify-between items-center p-3 rounded-xl border ${isDark ? 'bg-white/5 border-white/5' : 'bg-white border-slate-200'}`}><div className="flex flex-col"><span className={`font-bold ${textMain}`}>{f.description}</span><span className="text-xs text-slate-400">{new Date(f.date).toLocaleDateString()}</span></div><div className="flex items-center gap-2"><span className={`font-bold ${f.type === 'ingreso' ? 'text-emerald-500' : 'text-red-500'}`}>{f.type === 'ingreso' ? '+' : '-'}${f.amount}</span><button onClick={() => deleteItem('finance', f.id, setFinance)}><Trash2 size={14} className="text-slate-400 hover:text-red-400" /></button></div></div>))}</div>
                     </div>
                   )}
 
@@ -369,7 +363,6 @@ function App() {
                   {/* HABITS TAB (UPDATED WITH CHART) */}
                   {rightTab === 'habits' && (
                     <div className="space-y-6">
-                      {/* GRÁFICO DE HÁBITOS */}
                       <div className={`p-4 rounded-3xl border ${bgCard} h-48`}>
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={habitChartData}>
